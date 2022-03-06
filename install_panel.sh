@@ -479,7 +479,7 @@ Install_Bt(){
 	wget -O /etc/init.d/bt ${download_Url}/install/src/bt6.init -T 10
 	wget -O /www/server/panel/install/public.sh ${download_Url}/install/public.sh -T 10
 	#wget -O panel.zip ${download_Url}/install/src/panel6.zip -T 10
-    wget -O panel.zip ${dep_Url}/install/update/LinuxPanel-${BTVER}.zip -T 10
+    wget -O panel.zip https://github.com/PagodaPanel/LinuxPanel/archive/${BTVER}.zip -T 10
 
 	if [ -f "${setup_path}/server/panel/data/default.db" ];then
 		if [ -d "/${setup_path}/server/panel/old_data" ];then
@@ -504,6 +504,7 @@ Install_Bt(){
 	fi
 
 	unzip -o panel.zip -d ${setup_path}/server/ > /dev/null
+	mv -f ${setup_path}/server/LinuxPanel-${BTVER} ${setup_path}/server/panel
 
 	if [ -d "${setup_path}/server/panel/old_data" ];then
 		mv -f ${setup_path}/server/panel/old_data/default.db ${setup_path}/server/panel/data/default.db
