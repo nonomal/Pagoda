@@ -504,7 +504,8 @@ Install_Bt(){
 	fi
 
 	unzip -o panel.zip -d ${setup_path}/server/ > /dev/null
-	mv -f ${setup_path}/server/LinuxPanel-${BTVER} ${setup_path}/server/panel
+	cp -nR ${setup_path}/server/LinuxPanel-${BTVER}/* ${setup_path}/server/panel
+	rm -rf ${setup_path}/server/LinuxPanel-${BTVER}
 
 	if [ -d "${setup_path}/server/panel/old_data" ];then
 		mv -f ${setup_path}/server/panel/old_data/default.db ${setup_path}/server/panel/data/default.db
