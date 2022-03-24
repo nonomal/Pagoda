@@ -9,6 +9,12 @@ export PATH
 export LANG=en_US.UTF-8
 export LANGUAGE=en_US:en
 
+
+
+get_node_url(){
+	NODE_URL='http://download.bt.cn';
+}
+
 GetCpuStat(){
 	time1=$(cat /proc/stat |grep 'cpu ')
 	sleep 1
@@ -35,6 +41,16 @@ GetPackManager(){
 	fi
 }
 
+bt_check(){
+	echo "skipped"
+}
+
+send_check(){
+	exit 0;
+}
+init_check(){
+	echo "skipped"
+}
 GetSysInfo(){
 	if [ "${PM}" = "yum" ]; then
 		SYS_VERSION=$(cat /etc/redhat-release)
@@ -60,15 +76,17 @@ else
 fi
 GetPackManager
 
+#Security Patch
 if [ -d "/www/server/phpmyadmin/pma" ];then
 	rm -rf /www/server/phpmyadmin/pma
-	EN_CHECK=$(cat /www/server/panel/config/config.json |grep English)
-	if [ "${EN_CHECK}" ];then
-		curl http://download.bt.cn/install/update6_en.sh|bash
-	else
-		curl http://download.bt.cn/install/update6.sh|bash
-	fi
-	echo > /www/server/panel/data/restart.pl
+	#EN_CHECK=$(cat /www/server/panel/config/config.json |grep English)
+	#if [ "${EN_CHECK}" ];then
+	#	curl http://download.bt.cn/install/update6_en.sh|bash
+	#else
+	#	curl https://download.bt.cn/install/update6.sh|bash
+	#fi
+	#echo > /www/server/panel/data/restart.pl
+    echo "Please update your panel!"
 fi
 
 if [ ! $NODE_URL ];then
@@ -78,6 +96,6 @@ if [ ! $NODE_URL ];then
 	else
 		echo "selecting download node...";
 	fi
-	NODE_URL='http://download.bt.cn';
+	get_node_url
 fi
 

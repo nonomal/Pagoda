@@ -3,17 +3,10 @@ PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 
 public_file=/www/server/panel/install/public.sh
-public_file_Check=$(cat ${public_file} 2>/dev/null)
-if [ ! -f $public_file ] || [ -z "${public_file_Check}" ];then
-	wget -O $public_file http://download.bt.cn/install/public.sh -T 30;
-fi
-. $public_file
 
-if [ -z "${NODE_URL}" ];then
-	download_Url="http://download.bt.cn"
-else
-	download_Url=$NODE_URL
-fi
+NODE_URL='http://download.bt.cn';
+download_Url=$NODE_URL
+
 echo ${download_Url}
 mkdir -p /www/server
 run_path="/root"
