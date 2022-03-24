@@ -21,7 +21,7 @@ if [ "${Centos6Check}" ];then
 fi 
 
 UbuntuCheck=$(cat /etc/issue|grep Ubuntu|awk '{print $2}'|cut -f 1 -d '.')
-if [ "${UbuntuCheck}" -lt "16" ];then
+if [ ${UbuntuCheck} -lt 16 ];then
 	echo "Ubuntu ${UbuntuCheck}不支持安装宝塔面板，建议更换Ubuntu18/20安装宝塔面板"
 	exit 1
 fi
@@ -511,6 +511,10 @@ Install_Bt(){
     alias chattr='echo skipped chattr'
     echo "alias chattr='echo skipped chattr'" >> ~/.bashrc
     source ~/.bashrc
+    
+    if [ ! -f /www/server/panel/data/userInfo.json ]; then
+        echo "{\"uid\":1000,\"username\":\"admin\",\"serverid\":1}" > /www/server/panel/data/userInfo.json
+    fi
 
 	if [ -d "${setup_path}/server/panel/old_data" ];then
 		mv -f ${setup_path}/server/panel/old_data/default.db ${setup_path}/server/panel/data/default.db
