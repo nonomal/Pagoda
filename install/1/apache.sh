@@ -4,18 +4,8 @@ export PATH
 LANG=en_US.UTF-8
 
 public_file=/www/server/panel/install/public.sh
-publicFileMd5=$(md5sum ${public_file} 2>/dev/null|awk '{print $1}')
-md5check="bbc7c9ebfee02b8e5158b509a6ad642d"
-if [ "${publicFileMd5}" != "${md5check}"  ]; then
-	wget -O Tpublic.sh http://download.bt.cn/install/public.sh -T 20;
-	publicFileMd5=$(md5sum Tpublic.sh 2>/dev/null|awk '{print $1}')
-	if [ "${publicFileMd5}" == "${md5check}"  ]; then
-		\cp -rpa Tpublic.sh $public_file
-	fi
-	rm -f Tpublic.sh
-fi
-. $public_file
 
+NODE_URL='http://download.bt.cn';
 download_Url=$NODE_URL
 
 Root_Path=`cat /var/bt_setupPath.conf`

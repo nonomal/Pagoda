@@ -4,20 +4,17 @@ export PATH
 export HOME=/root
 install_tmp='/tmp/bt_install.pl'
 public_file=/www/server/panel/install/public.sh
-if [ ! -f $public_file ];then
-	wget -O $public_file http://download.bt.cn/install/public.sh -T 5;
-fi
-. $public_file
 
+NODE_URL='http://download.bt.cn';
 download_Url=$NODE_URL
-mirror_Url="https://npm.taobao.org/mirrors/node"
+mirror_Url="https://npmmirror.com/mirrors/node"
 
 mirrorCheck=$(curl --connect-timeout 5 --head -s -o /dev/null -w "%{http_code} %{time_total}" ${mirror_Url})
 mirrorStatus=$(echo $mirrorCheck|awk '{print $1}')
 mirrorSpeed=$(echo $mirrorCheck|awk '{print $2}'|cut -d '.' -f 1)
 if [ "${mirrorStatus}" == "200" ] && [ "${mirrorSpeed}" -le "3" ];then
   taobaoMirror="true"
-  export NVM_NODEJS_ORG_MIRROR=https://npm.taobao.org/mirrors/node
+  export NVM_NODEJS_ORG_MIRROR=https://npmmirror.com/mirrors/node
 fi
 
 
