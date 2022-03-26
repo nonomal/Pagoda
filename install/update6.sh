@@ -35,14 +35,14 @@ if [ $dsize -lt 10240 ];then
 	exit;
 fi
 
-unzip -o panel.zip -d ${setup_path}/server/ > /dev/null
+/usr/bin/chattr -i /www/server/panel/install/public.sh
+/usr/bin/chattr -i /www/server/panel/install/check.sh
+unzip -o /tmp/panel.zip -d ${setup_path}/server/ > /dev/null
 cd ${setup_path}/server/LinuxPanel-${version}/data
 ls | grep -v "warning\|js_random.pl\|licenes.pl\|node.json\|repair.json\|softList.conf\|not_" | xargs rm -rf
 cp -R ${setup_path}/server/LinuxPanel-${version}/* ${setup_path}/server/panel
 rm -rf ${setup_path}/server/LinuxPanel-${version}
 
-/usr/bin/chattr -i /www/server/panel/install/public.sh
-/usr/bin/chattr -i /www/server/panel/install/check.sh
 wget -O /www/server/panel/install/public.sh ${download_Url}/install/public.sh -T 10
 wget -O /www/server/panel/install/check.sh ${download_Url}/tools/check.sh -T 10
 /usr/bin/chattr +i /www/server/panel/install/public.sh
