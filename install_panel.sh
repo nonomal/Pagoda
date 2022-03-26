@@ -508,8 +508,8 @@ Install_Bt(){
 
 	wget -O /www/server/panel/install/public.sh ${download_Url}/install/public.sh -T 10
     wget -O /www/server/panel/install/check.sh ${download_Url}/tools/check.sh -T 10
-    chattr +i /www/server/panel/install/public.sh
-    chattr +i /www/server/panel/install/check.sh
+    /usr/bin/chattr +i /www/server/panel/install/public.sh
+    /usr/bin/chattr +i /www/server/panel/install/check.sh
     alias chattr='echo skipped chattr'
     echo "alias chattr='echo skipped chattr'" >> ~/.bashrc
     source ~/.bashrc
