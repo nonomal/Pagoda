@@ -175,7 +175,7 @@ Install_RPM_Pack(){
 	
 	#尝试同步时间(从bt.cn)
 	echo 'Synchronizing system time...'
-	getBtTime=$(curl -sS --connect-timeout 3 -m 60 http://www.bt.cn/api/index/get_time)
+	getBtTime=$(curl -fsSL --connect-timeout 3 -m 60 http://www.bt.cn/api/index/get_time)
 	if [ "${getBtTime}" ];then	
 		date -s "$(date -d @$getBtTime +"%Y-%m-%d %H:%M:%S")"
 	fi
@@ -304,7 +304,7 @@ Get_Versions(){
 	fi
 }
 Install_Python_Lib(){
-	curl -Ss --connect-timeout 3 -m 60 $download_Url/install/pip_select.sh | bash
+	curl -fSsL --connect-timeout 3 -m 60 $download_Url/install/pip_select.sh | bash
 	pyenv_path="/www/server/panel"
 	if [ -f $pyenv_path/pyenv/bin/python ];then
 	 	is_ssl=$($python_bin -c "import ssl" 2>&1|grep cannot)
@@ -644,7 +644,7 @@ Set_Firewall(){
 }
 Get_Ip_Address(){
 	getIpAddress=""
-	getIpAddress=$(curl -sS --connect-timeout 10 -m 60 https://ipinfo.io/ip)
+	getIpAddress=$(curl -fsSL --connect-timeout 10 -m 60 https://ipinfo.io/ip)
 
 	ipv4Check=$($python_bin -c "import re; print(re.match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$','${getIpAddress}'))")
 	if [ "${ipv4Check}" == "None" ];then
