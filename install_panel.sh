@@ -2,7 +2,13 @@
 PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:~/bin
 export PATH
 LANG=en_US.UTF-8
-BTVER='7.7.0'
+
+panel_Url='https://ghproxy.com/github.com/PagodaPanel/LinuxPanel/releases/latest/download/install.zip'
+bt_Url='https://fastly.jsdelivr.net/gh/PagodaPanel/Pagoda@latest'
+
+if [ "$1" == "dev" ];then
+	panel_Url='https://ghproxy.com/github.com/PagodaPanel/LinuxPanel/releases/download/beta/install.zip'
+fi
 
 if [ $(whoami) != "root" ];then
 	echo "请使用root权限执行宝塔安装命令！"
@@ -21,7 +27,7 @@ if [ "${Centos6Check}" ];then
 fi 
 
 UbuntuCheck=$(cat /etc/issue|grep Ubuntu|awk '{print $2}'|cut -f 1 -d '.')
-if [ "${UbuntuCheck}" -lt "16" ];then
+if [ "${UbuntuCheck}" ] && [ "${UbuntuCheck}" -lt "16" ];then
 	echo "Ubuntu ${UbuntuCheck}不支持安装宝塔面板，建议更换Ubuntu18/20安装宝塔面板"
 	exit 1
 fi
@@ -31,6 +37,9 @@ setup_path="/www"
 python_bin=$setup_path/server/panel/pyenv/bin/python
 cpu_cpunt=$(cat /proc/cpuinfo|grep processor|wc -l)
 
+if [ "$1" ];then
+	IDC_CODE=$1
+fi
 
 GetSysInfo(){
 	if [ -s "/etc/redhat-release" ];then
@@ -124,11 +133,39 @@ Service_Add(){
 	if [ "${PM}" == "yum" ] || [ "${PM}" == "dnf" ]; then
 		chkconfig --add bt
 		chkconfig --level 2345 bt on
+		Centos9Check=$(cat /etc/redhat-release |grep ' 9')
+		if [ "${Centos9Check}" ];then
+            wget -O /usr/lib/systemd/system/btpanel.service ${download_Url}/init/systemd/btpanel.service
+			systemctl enable btpanel
+		fi		
 	elif [ "${PM}" == "apt-get" ]; then
 		update-rc.d bt defaults
 	fi 
 }
-
+Set_Centos_Repo(){
+	HUAWEI_CHECK=$(cat /etc/motd |grep "Huawei Cloud")
+	if [ "${HUAWEI_CHECK}" ] && [ "${is64bit}" == "64" ];then
+		\cp -rpa /etc/yum.repos.d/ /etc/yumBak
+		sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo
+		sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.epel.cloud|g' /etc/yum.repos.d/CentOS-*.repo
+		rm -f /etc/yum.repos.d/epel.repo
+		rm -f /etc/yum.repos.d/epel-*
+	fi
+	ALIYUN_CHECK=$(cat /etc/motd|grep "Alibaba Cloud ")
+	if [  "${ALIYUN_CHECK}" ] && [ "${is64bit}" == "64" ] && [ ! -f "/etc/yum.repos.d/Centos-vault-8.5.2111.repo" ];then
+		rename '.repo' '.repo.bak' /etc/yum.repos.d/*.repo
+		wget https://mirrors.aliyun.com/repo/Centos-vault-8.5.2111.repo -O /etc/yum.repos.d/Centos-vault-8.5.2111.repo
+		wget https://mirrors.aliyun.com/repo/epel-archive-8.repo -O /etc/yum.repos.d/epel-archive-8.repo
+		sed -i 's/mirrors.cloud.aliyuncs.com/url_tmp/g'  /etc/yum.repos.d/Centos-vault-8.5.2111.repo &&  sed -i 's/mirrors.aliyun.com/mirrors.cloud.aliyuncs.com/g' /etc/yum.repos.d/Centos-vault-8.5.2111.repo && sed -i 's/url_tmp/mirrors.aliyun.com/g' /etc/yum.repos.d/Centos-vault-8.5.2111.repo
+		sed -i 's/mirrors.aliyun.com/mirrors.cloud.aliyuncs.com/g' /etc/yum.repos.d/epel-archive-8.repo
+	fi
+	MIRROR_CHECK=$(cat /etc/yum.repos.d/CentOS-Linux-AppStream.repo |grep "[^#]mirror.centos.org")
+	if [ "${MIRROR_CHECK}" ] && [ "${is64bit}" == "64" ];then
+		\cp -rpa /etc/yum.repos.d/ /etc/yumBak
+		sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*.repo
+		sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.epel.cloud|g' /etc/yum.repos.d/CentOS-*.repo
+	fi
+}
 get_node_url(){
 	if [ ! -f /bin/curl ];then
 		if [ "${PM}" = "yum" ]; then
@@ -139,8 +176,7 @@ get_node_url(){
 	fi
 
     NODE_URL='http://download.bt.cn';
-	download_Url='https://github.com/PagodaPanel/Pagoda/raw/master'
-    dep_Url=$NODE_URL
+	download_Url=$NODE_URL
 	echo "Download node: $download_Url";
 	echo '---------------------------------------------';
 }
@@ -161,6 +197,9 @@ Remove_Package(){
 Install_RPM_Pack(){
 	yumPath=/etc/yum.conf
 	Centos8Check=$(cat /etc/redhat-release | grep ' 8.' | grep -iE 'centos|Red Hat')
+	if [ "${Centos8Check}" ];then
+		Set_Centos_Repo
+	fi	
 	isExc=$(cat $yumPath|grep httpd)
 	if [ "$isExc" = "" ];then
 		echo "exclude=httpd nginx php mysql mairadb python-psutil python2-psutil" >> $yumPath
@@ -175,7 +214,7 @@ Install_RPM_Pack(){
 	
 	#尝试同步时间(从bt.cn)
 	echo 'Synchronizing system time...'
-	getBtTime=$(curl -fsSL --connect-timeout 3 -m 60 http://www.bt.cn/api/index/get_time)
+	getBtTime=$(curl -sS --connect-timeout 3 -m 60 http://www.bt.cn/api/index/get_time)
 	if [ "${getBtTime}" ];then	
 		date -s "$(date -d @$getBtTime +"%Y-%m-%d %H:%M:%S")"
 	fi
@@ -216,6 +255,10 @@ Install_RPM_Pack(){
 }
 Install_Deb_Pack(){
 	ln -sf bash /bin/sh
+	UBUNTU_22=$(cat /etc/issue|grep "Ubuntu 22")
+	if [ "${UBUNTU_22}" ];then
+		apt-get remove needrestart -y
+	fi
 	apt-get update -y
 	apt-get install ruby -y
 	apt-get install lsb-release -y
@@ -230,12 +273,18 @@ Install_Deb_Pack(){
 	#echo 'Synchronizing system time...'
 	#ntpdate 0.asia.pool.ntp.org
 	#apt-get upgrade -y
+	LIBCURL_VER=$(dpkg -l|grep libcurl4|awk '{print $3}')
+	if [ "${LIBCURL_VER}" == "7.68.0-1ubuntu2.8" ];then
+		apt-get remove libcurl4 -y
+		apt-get install curl -y
+	fi
+
 	debPacks="wget curl libcurl4-openssl-dev gcc make zip unzip tar openssl libssl-dev gcc libxml2 libxml2-dev zlib1g zlib1g-dev libjpeg-dev libpng-dev lsof libpcre3 libpcre3-dev cron net-tools swig build-essential libffi-dev libbz2-dev libncurses-dev libsqlite3-dev libreadline-dev tk-dev libgdbm-dev libdb-dev libdb++-dev libpcap-dev xz-utils git";
 	apt-get install -y $debPacks --force-yes
 
 	for debPack in ${debPacks}
 	do
-		packCheck=$(dpkg -l ${debPack})
+		packCheck=$(dpkg -l|grep ${debPack})
 		if [ "$?" -ne "0" ] ;then
 			apt-get install -y $debPack
 		fi
@@ -304,7 +353,7 @@ Get_Versions(){
 	fi
 }
 Install_Python_Lib(){
-	curl -fSsL --connect-timeout 3 -m 60 $download_Url/install/pip_select.sh | bash
+	curl -Ss --connect-timeout 3 -m 60 $download_Url/install/pip_select.sh|bash
 	pyenv_path="/www/server/panel"
 	if [ -f $pyenv_path/pyenv/bin/python ];then
 	 	is_ssl=$($python_bin -c "import ssl" 2>&1|grep cannot)
@@ -313,12 +362,13 @@ Install_Python_Lib(){
 			chmod -R 700 $pyenv_path/pyenv/bin
 			is_package=$($python_bin -m psutil 2>&1|grep package)
 			if [ "$is_package" = "" ];then
-				wget -O $pyenv_path/pyenv/pip.txt $dep_Url/install/pyenv/pip.txt -T 5
+				wget -O $pyenv_path/pyenv/pip.txt $download_Url/install/pyenv/pip.txt -T 5
 				$pyenv_path/pyenv/bin/pip install -U pip
 				$pyenv_path/pyenv/bin/pip install -U setuptools
 				$pyenv_path/pyenv/bin/pip install -r $pyenv_path/pyenv/pip.txt
 			fi
 			source $pyenv_path/pyenv/bin/activate
+			chmod -R 700 $pyenv_path/pyenv/bin
 			return
 		else
 			rm -rf $pyenv_path/pyenv
@@ -388,7 +438,7 @@ Install_Python_Lib(){
 
 	if [ "${os_version}" != "" ];then
 		pyenv_file="/www/pyenv.tar.gz"
-		wget -O $pyenv_file $dep_Url/install/pyenv/pyenv-${os_type}${os_version}-x${is64bit}.tar.gz -T 10
+		wget -O $pyenv_file $download_Url/install/pyenv/pyenv-${os_type}${os_version}-x${is64bit}.tar.gz -T 10
 		tmp_size=$(du -b $pyenv_file|awk '{print $1}')
 		if [ $tmp_size -lt 703460 ];then
 			rm -f $pyenv_file
@@ -418,7 +468,7 @@ Install_Python_Lib(){
 	cd /www
 	python_src='/www/python_src.tar.xz'
 	python_src_path="/www/Python-${py_version}"
-	wget -O $python_src $dep_Url/src/Python-${py_version}.tar.xz -T 5
+	wget -O $python_src $download_Url/src/Python-${py_version}.tar.xz -T 5
 	tmp_size=$(du -b $python_src|awk '{print $1}')
 	if [ $tmp_size -lt 10703460 ];then
 		rm -f $python_src
@@ -436,8 +486,8 @@ Install_Python_Lib(){
 	fi
 	cd ~
 	rm -rf $python_src_path
-	wget -O $pyenv_path/pyenv/bin/activate $dep_Url/install/pyenv/activate.panel -T 5
-	wget -O $pyenv_path/pyenv/pip.txt $dep_Url/install/pyenv/pip-3.7.8.txt -T 5
+	wget -O $pyenv_path/pyenv/bin/activate $download_Url/install/pyenv/activate.panel -T 5
+	wget -O $pyenv_path/pyenv/pip.txt $download_Url/install/pyenv/pip-3.7.8.txt -T 5
 	ln -sf $pyenv_path/pyenv/bin/pip3.7 $pyenv_path/pyenv/bin/pip
 	ln -sf $pyenv_path/pyenv/bin/python3.7 $pyenv_path/pyenv/bin/python
 	ln -sf $pyenv_path/pyenv/bin/pip3.7 /usr/bin/btpip
@@ -459,6 +509,11 @@ Install_Bt(){
 	panelPort="8888"
 	if [ -f ${setup_path}/server/panel/data/port.pl ];then
 		panelPort=$(cat ${setup_path}/server/panel/data/port.pl)
+	else
+		RE_NUM=$(expr $RANDOM % 5)
+		if [ "${RE_NUM}" == "1" ];then
+			panelPort=$(expr $RANDOM % 55535 + 10000)
+		fi
 	fi
 	mkdir -p ${setup_path}/server/panel/logs
 	mkdir -p ${setup_path}/server/panel/vhost/apache
@@ -471,14 +526,17 @@ Install_Bt(){
 	mkdir -p /www/backup/database
 	mkdir -p /www/backup/site
 
+	if [ ! -d "/etc/init.d" ];then
+		mkdir -p /etc/init.d
+	fi
+
 	if [ -f "/etc/init.d/bt" ]; then
 		/etc/init.d/bt stop
 		sleep 1
 	fi
 
 	wget -O /etc/init.d/bt ${download_Url}/install/src/bt6.init -T 10
-	#wget -O panel.zip ${download_Url}/install/src/panel6.zip -T 10
-	wget -O panel.zip https://github.com/PagodaPanel/LinuxPanel/archive/${BTVER}.zip -T 10
+	wget -O panel.zip ${panel_Url} -T 10
 
 	if [ -f "${setup_path}/server/panel/data/default.db" ];then
 		if [ -d "/${setup_path}/server/panel/old_data" ];then
@@ -503,20 +561,8 @@ Install_Bt(){
 	fi
 
 	unzip -o panel.zip -d ${setup_path}/server/ > /dev/null
-	cp -nR ${setup_path}/server/LinuxPanel-${BTVER}/* ${setup_path}/server/panel
-	rm -rf ${setup_path}/server/LinuxPanel-${BTVER}
-
-	wget -O /www/server/panel/install/public.sh ${download_Url}/install/public.sh -T 10
-    wget -O /www/server/panel/install/check.sh ${download_Url}/tools/check.sh -T 10
-    /usr/bin/chattr +i /www/server/panel/install/public.sh
-    /usr/bin/chattr +i /www/server/panel/install/check.sh
-    alias chattr='echo skipped chattr'
-    echo "alias chattr='echo skipped chattr'" >> ~/.bashrc
-    source ~/.bashrc
-    
-    if [ ! -f /www/server/panel/data/userInfo.json ]; then
-        echo "{\"uid\":1000,\"username\":\"admin\",\"serverid\":1}" > /www/server/panel/data/userInfo.json
-    fi
+	wget -O /www/server/panel/install/public.sh ${bt_Url}/install/public.sh -T 10
+	wget -O /www/server/panel/install/check.sh ${bt_Url}/tools/check.sh -T 10
 
 	if [ -d "${setup_path}/server/panel/old_data" ];then
 		mv -f ${setup_path}/server/panel/old_data/default.db ${setup_path}/server/panel/data/default.db
@@ -548,8 +594,8 @@ Install_Bt(){
 }
 Set_Bt_Panel(){
 	Run_User="www"
-	wwwUser=$(cat /etc/passwd|grep www)
-	if [ "${wwwUser}" == "" ];then
+	wwwUser=$(cat /etc/passwd|cut -d ":" -f 1|grep ^www$)
+	if [ "${wwwUser}" != "www" ];then
 		groupadd ${Run_User}
 		useradd -s /sbin/nologin -g ${Run_User} ${Run_User}
 	fi
@@ -561,6 +607,9 @@ Set_Bt_Panel(){
 		auth_path=$(cat /dev/urandom | head -n 16 | md5sum | head -c 8)
 		echo "/${auth_path}" > ${admin_auth}
 	fi
+	chmod -R 700 $pyenv_path/pyenv/bin
+	/www/server/panel/pyenv/bin/pip3 install flask -U
+	/www/server/panel/pyenv/bin/pip3 install flask-sock
 	auth_path=$(cat ${admin_auth})
 	cd ${setup_path}/server/panel/
 	/etc/init.d/bt start
@@ -593,6 +642,7 @@ Set_Firewall(){
 			ufw allow 21/tcp
 			ufw allow 22/tcp
 			ufw allow 80/tcp
+			ufw allow 443/tcp
 			ufw allow 888/tcp
 			ufw allow ${panelPort}/tcp
 			ufw allow ${sshPort}/tcp
@@ -608,6 +658,7 @@ Set_Firewall(){
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 21 -j ACCEPT
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport ${panelPort} -j ACCEPT
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport ${sshPort} -j ACCEPT
 			iptables -I INPUT -p tcp -m state --state NEW -m tcp --dport 39000:40000 -j ACCEPT
@@ -634,6 +685,7 @@ Set_Firewall(){
 			firewall-cmd --permanent --zone=public --add-port=21/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=22/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=80/tcp > /dev/null 2>&1
+			firewall-cmd --permanent --zone=public --add-port=443/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=${panelPort}/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=${sshPort}/tcp > /dev/null 2>&1
 			firewall-cmd --permanent --zone=public --add-port=39000-40000/tcp > /dev/null 2>&1
@@ -694,7 +746,7 @@ Install_Main(){
 	Set_Firewall
 
 	Get_Ip_Address
-	Setup_Count
+	Setup_Count ${IDC_CODE}
 }
 
 echo "
@@ -732,5 +784,6 @@ echo -e "=================================================================="
 endTime=`date +%s`
 ((outTime=($endTime-$startTime)/60))
 echo -e "Time consumed:\033[32m $outTime \033[0mMinute!"
+
 
 

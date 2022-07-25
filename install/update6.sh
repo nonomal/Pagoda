@@ -10,7 +10,7 @@ if [ ! -d /www/server/panel/BTPanel ];then
 	exit 0;
 fi
 
-download_Url='https://github.com/PagodaPanel/Pagoda/raw/master'
+download_Url='https://ghproxy.com/github.com/PagodaPanel/LinuxPanel/releases/download'
 
 Centos8Check=$(cat /etc/redhat-release | grep ' 8.' | grep -iE 'centos|Red Hat')
 if [ "${Centos8Check}" ];then
@@ -25,43 +25,28 @@ if [ -f $env_path ];then
 	mypip="/www/server/panel/pyenv/bin/pip"
 fi
 
-
-setup_path='/www'
-version='7.7.0'
-wget -T 5 -O /tmp/panel.zip https://github.com/PagodaPanel/LinuxPanel/archive/${version}.zip
+setup_path=/www
+version=$(curl -Ss --connect-timeout 5 -m 2 https://pagoda.moetools.net/api/panel/get_version)
+if [ "$version" = '' ];then
+	version='7.9.3'
+fi
+armCheck=$(uname -m|grep arm)
+if [ "${armCheck}" ];then
+	echo "Not support!" && exit
+fi
+wget -T 5 -O /tmp/panel.zip $download_Url/v${version}/update.zip
 dsize=$(du -b /tmp/panel.zip|awk '{print $1}')
 if [ $dsize -lt 10240 ];then
 	echo "获取更新包失败，请稍后更新"
 	exit;
 fi
-
-/usr/bin/chattr -i /www/server/panel/install/public.sh
-/usr/bin/chattr -i /www/server/panel/install/check.sh
-unzip -o /tmp/panel.zip -d ${setup_path}/server/ > /dev/null
-cd ${setup_path}/server/LinuxPanel-${version}/data
-ls | grep -v "warning\|js_random.pl\|licenes.pl\|node.json\|repair.json\|softList.conf\|not_" | xargs rm -rf
-cp -R ${setup_path}/server/LinuxPanel-${version}/* ${setup_path}/server/panel
-rm -rf ${setup_path}/server/LinuxPanel-${version}
-
-wget -O /www/server/panel/install/public.sh ${download_Url}/install/public.sh -T 10
-wget -O /www/server/panel/install/check.sh ${download_Url}/tools/check.sh -T 10
-/usr/bin/chattr +i /www/server/panel/install/public.sh
-/usr/bin/chattr +i /www/server/panel/install/check.sh
-alias chattr='echo skipped chattr'
-if grep -q -- "alias chattr=" ~/.bashrc ; then
-    echo "alias chattr='echo skipped chattr'" >> ~/.bashrc
-    source ~/.bashrc
-fi
-
-if [ ! -f /www/server/panel/data/userInfo.json ]; then
-    echo "{\"uid\":1000,\"username\":\"admin\",\"serverid\":1}" > /www/server/panel/data/userInfo.json
-fi
-
+unzip -o /tmp/panel.zip -d $setup_path/server/ > /dev/null
+rm -f /tmp/panel.zip
 cd $setup_path/server/panel/
 check_bt=`cat /etc/init.d/bt`
 if [ "${check_bt}" = "" ];then
 	rm -f /etc/init.d/bt
-	wget -O /etc/init.d/bt $download_Url/install/src/bt6.init -T 20
+	wget -O /etc/init.d/bt http://download.bt.cn/install/src/bt7.init -T 20
 	chmod +x /etc/init.d/bt
 fi
 rm -f /www/server/panel/*.pyc
